@@ -670,26 +670,6 @@ public static class TransformExtensions
     {
         value.rotation = Quaternion.LookRotation(target.position - value.position);
     }
-    //Smooth the Look operation using Coroutines.
-    // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
-    public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
-    {
-
-        isFinished = false;
-
-        BoolWrapper statusWrapper = new BoolWrapper();
-        statusWrapper.Value = false;
-        isFinished = statusWrapper.Value;
-
-        System.Action result = () =>
-        {
-            //Swap this with any Singleton inheriting from MonoBehaviour
-            /// Singleton.Instance.StartCoroutine
-            Ubra.Ubra.Instance.StartCoroutine(LookAtCoroutine(value, target, speed, maxTimeSpan, statusWrapper.Value));
-        };
-
-        result();
-    }
 
     //You can retrieve the operation status by using a bool wrapper
     public static IEnumerator LookAtCoroutine(Transform value, Transform target, float timeToLookAt, float maxTimeSpan, bool status)
