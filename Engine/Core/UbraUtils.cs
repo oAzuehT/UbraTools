@@ -194,8 +194,46 @@ public static class UbraUtils
 
 
 public static class GameObjectExtensions
-{
+{    
 
+    /// Hello, Chat GPT!
+    public static void RemoveComponent<T>(this GameObject instance) where T : Component
+    {
+
+        T obj =  instance.GetComponent<T>();
+        if(obj != null)
+        {
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(instance.GetComponent<T>());
+            }
+            else
+            {
+                UnityEngine.Object.DestroyImmediate(instance.GetComponent<T>());
+            }
+        }
+        
+    }
+    public static void RemoveComponentFromChildren<T>(this GameObject instance) where T : Component
+    {
+
+        T[] children = instance.GetComponentsInChildren<T>();
+        if(children.Length > 0)
+        {
+            for (int i = 0; i < children.Length; i++)
+            {
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(children[i]);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(children[i]);
+                }              
+            }
+        }
+
+    }
 
     public static Vector3[] GetBoxColliderVertices(this BoxCollider box)
     {
