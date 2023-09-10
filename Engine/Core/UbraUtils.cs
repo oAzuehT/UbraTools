@@ -99,19 +99,6 @@ public static class UbraUtils
     }
 
     //Conditional Debug
-    public static void ConsoleDebug(bool condition, string valueIfTrue, string valueIfFalse = "")
-    {
-#if UNITY_EDITOR
-        if (condition)
-        {
-            DebugValue(valueIfTrue);
-        }
-        else
-        {
-            DebugValue(valueIfFalse);
-        }
-#endif
-    }
     public static void ConsoleDebug(Type condition, string valueIfTrue, string valueIfFalse = "")
     {
 #if UNITY_EDITOR
@@ -125,7 +112,59 @@ public static class UbraUtils
         }
 #endif
     }
-    
+    public static void ConsoleDebug(bool condition, string valueIfTrue, string valueIfFalse = "")
+    {
+#if UNITY_EDITOR
+        if (condition)
+        {
+            DebugValue(valueIfTrue);
+        }
+        else
+        {
+            DebugValue(valueIfFalse);
+        }
+#endif
+    }
+    public static void ConsoleDebug(bool condition, string valueIfTrue, System.Action doIfFalse)
+    {
+#if UNITY_EDITOR
+        if (condition)
+        {
+            DebugValue(valueIfTrue);
+        }
+        else
+        {
+            doIfFalse?.Invoke();
+        }
+#endif
+    }
+    public static void ConsoleDebug(bool condition, System.Action doIfTrue, string valueIfFalse = "")
+    {
+#if UNITY_EDITOR
+        if (condition)
+        {
+            doIfTrue?.Invoke();
+        }
+        else
+        {
+            DebugValue(valueIfFalse);
+        }
+#endif
+    }
+    public static void ConsoleDebug(bool condition, System.Action doIfTrue, System.Action doIfFalse)
+    {
+#if UNITY_EDITOR
+        if (condition)
+        {
+            doIfTrue?.Invoke();
+        }
+        else
+        {
+            doIfFalse?.Invoke();
+        }
+#endif
+    }
+
     private static void DebugValue(string value)
     {
 
