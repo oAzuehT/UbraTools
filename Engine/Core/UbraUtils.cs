@@ -89,16 +89,12 @@ public static class UbraUtils
 
         if (values != null && values.Length > 0)
         {
-
             ///Debug.Log(string.Join(" ", values));
-
             foreach (string value in values)
             {
                 DebugValue(value);
             }
-
         }
-
 #endif
     }
 
@@ -108,18 +104,10 @@ public static class UbraUtils
 #if UNITY_EDITOR
         if (condition)
         {
-            if (valueIfTrue == null || valueIfTrue.Length < 1)
-            {
-                return;
-            }
             DebugValue(valueIfTrue);
         }
         else
         {
-            if (valueIfFalse.Length > 0 || valueIfFalse.Length < 1)
-            {
-                return;
-            }
             DebugValue(valueIfFalse);
         }
 #endif
@@ -129,18 +117,10 @@ public static class UbraUtils
 #if UNITY_EDITOR
         if ((condition.IsValueType.Equals(true)))
         {
-            if (valueIfTrue == null || valueIfTrue.Length < 1)
-            {
-                return;
-            }
             DebugValue(valueIfTrue);
         }
         else
         {
-            if (valueIfFalse.Length > 0 || valueIfFalse.Length < 1)
-            {
-                return;
-            }
             DebugValue(valueIfFalse);
         }
 #endif
@@ -149,15 +129,19 @@ public static class UbraUtils
     private static void DebugValue(string value)
     {
 
-        value = value.RemoveCharacters(DEBUG_ERROR);
-        value = value.RemoveCharacters(DEBUG_WARNING);
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
 
         if (value.Contains(DEBUG_ERROR))
-        {           
+        {
+            value = value.RemoveCharacters(DEBUG_ERROR);         
             Debug.LogError(value);
         }
         else if (value.Contains(DEBUG_WARNING))
         {
+            value = value.RemoveCharacters(DEBUG_WARNING);
             Debug.LogWarning(value);
         }
         else
@@ -669,6 +653,26 @@ public static class TransformExtensions
     public static void LookTo(this Transform value, Transform target)
     {
         value.rotation = Quaternion.LookRotation(target.position - value.position);
+    }
+    //Smooth the Look operation using Coroutines.
+    // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
+    public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
+    {
+
+        isFinished = false;
+
+        BoolWrapper statusWrapper = new BoolWrapper();
+        statusWrapper.Value = false;
+        isFinished = statusWrapper.Value;
+
+        System.Action result = () =>
+        {
+            //Swap this with any Singleton inheriting from MonoBehaviour
+            /// Singleton.Instance.StartCoroutine
+            Ubra.Ubra.Instance.StartCoroutine(LookAtCoroutine(value, target, speed, maxTimeSpan, statusWrapper.Value));
+        };
+
+        result();
     }
 
     //You can retrieve the operation status by using a bool wrapper
@@ -1186,7 +1190,7 @@ public static class MathExtensions
 
     public static float GetCommonDivisor(float valueA, float valueB, int iterations = 10)
     {
-        return ApproximateGCD(valueA, valueB, iterations);        
+        return ApproximateGCD(valueA, valueB, iterations);
     }
 
     // Calculate Greatest Common Divisor
@@ -1297,7 +1301,6 @@ public static class MathExtensions
     {
         return ((firstPosition + secondPosition) / 2);
     }
-    
 
     public static Vector3 PredictPositionChange(this Rigidbody value, Vector3 force, float timeInterval)
     {
@@ -1307,9 +1310,7 @@ public static class MathExtensions
         return value.position + predictedPositionChange;
     }
 
-
-
-    ///External souces Start
+    #region External Sources
 
     public static float GetAngleBetweenPositions(Vector3 firstPosition, Vector3 secondPosition)
     {
@@ -1340,7 +1341,6 @@ public static class MathExtensions
         return 360 - result;
     }
 
-
     ///Code from JohnStairs.Utils
 
     //the angle of the rotation from vector A to vector B
@@ -1363,7 +1363,6 @@ public static class MathExtensions
         return Mathf.Abs(a - b) < epsilon;
     }
 
-    ///External source END
-
+    #endregion
 
 }
