@@ -592,7 +592,7 @@ public static class AnimatorExtensions
         // Get all states in the Animator Controller
         AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
         ///AnimatorStateMachine rootStateMachine = controller.layers[layerIndex].stateMachine;
-        ChildAnimatorStateMachine[] rootMachines = controller.GetStateMachines(0);
+        ChildAnimatorStateMachine[] rootMachines = controller.GetStateMachines(layerIndex);
         AnimatorState desiredResult = null;
 
         /// ROOT LEVEL
@@ -611,7 +611,7 @@ public static class AnimatorExtensions
                 if (desiredResult != null)
                 {
 
-                    Debug.Log(" State :: " + desiredResult.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
+                    //Debug.Log(" State :: " + desiredResult.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
 
                     return desiredResult;
                 }
@@ -631,7 +631,7 @@ public static class AnimatorExtensions
                 if (branch.state.name.Equals(stateMachineName))
                 {
 
-                    Debug.Log(" State :: " + branch.state.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
+                    //Debug.Log(" State :: " + branch.state.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
 
                     return branch.state;
                 }
@@ -640,7 +640,7 @@ public static class AnimatorExtensions
 
         }
 
-        Debug.Log("State not Found!");
+        Debug.Log("State " + desiredStateName + " not Found!");
         return null;
 
     }
