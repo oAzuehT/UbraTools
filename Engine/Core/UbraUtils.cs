@@ -1338,7 +1338,9 @@ public static class MathExtensions
     }
     public static Vector3 Middle(this Vector3 firstPosition, Vector3 secondPosition)
     {
-        return ((firstPosition + secondPosition) / 2);
+        Vector3 direction = (secondPosition - firstPosition).normalized;
+        float distance = Vector3.Distance(firstPosition, secondPosition);
+        return firstPosition + (direction * (distance / 2));
     }
 
     public static Vector3 PredictPositionChange(this Rigidbody value, Vector3 force, float timeInterval)
