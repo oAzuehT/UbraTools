@@ -8,6 +8,10 @@ using System.Linq;
 using UnityEditor.Animations;
 using Ubra.Engine.Core;
 
+public class Ref<T> where T : struct
+{
+    public T Value;
+}
 public struct IntWrapper
 {
     public int Value;
@@ -213,6 +217,8 @@ public static class UbraUtils
         return (int)Mathf.Log(LayerMask.GetMask(layerName), 2);
     }
 
+
+
 }
 
 
@@ -310,6 +316,19 @@ public static class GameObjectExtensions
         }
 
         return hasLayers;
+    }
+
+    public static LayerMask ToLayerMask(this int[] layers)
+    {
+        LayerMask layerMask = 0; // Initialize as empty mask
+
+        foreach (int layerIndex in layers)
+        {
+            // Use bitwise OR to set the bit corresponding to the layer index
+            layerMask |= 1 << layerIndex;
+        }
+
+        return layerMask;
     }
 
 
@@ -691,8 +710,66 @@ public static class TransformExtensions
     //Instantly 'Look' at other transform
     public static void LookTo(this Transform value, Transform target)
     {
-        value.rotation = Quaternion.LookRotation(target.position - value.position);
+
+        Vector3 direction = target.position - value.position;
+
+        // Check if the direction vector is not zero (avoid division by zero)
+        if (direction != Vector3.zero)
+        {
+            value.rotation = Quaternion.LookRotation(direction);
+        }
+
+        ///value.rotation = Quaternion.LookRotation(target.position - value.position);
     }
+    public static void LookTo(this Transform value, Vector3 target)
+    {
+
+        Vector3 direction = target - value.position;
+
+        // Check if the direction vector is not zero (avoid division by zero)
+        if (direction != Vector3.zero)
+        {
+            value.rotation = Quaternion.LookRotation(direction);
+        }
+
+        ///value.rotation = Quaternion.LookRotation(target.position - value.position);
+    }
+
+    public static Quaternion LookToResult(this Transform value, Transform target)
+    {
+
+        Vector3 direction = target.position - value.position;
+
+        // Check if the direction vector is not zero
+        if (direction != Vector3.zero)
+        {
+            value.rotation = Quaternion.LookRotation(direction);
+        }
+        else
+        {
+            value.rotation = Quaternion.identity;
+        }
+
+        return value.rotation;
+    }
+
+    public static Quaternion LookToResult(this Transform value, Vector3 target)
+    {
+        Vector3 direction = target - value.position;
+
+        // Check if the direction vector is not zero
+        if (direction != Vector3.zero)
+        {
+            value.rotation = Quaternion.LookRotation(direction);
+        }
+        else
+        {
+            value.rotation = Quaternion.identity;
+        }
+
+        return value.rotation;
+    }
+
     //Smooth the Look operation using Coroutines.
     // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
     public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
@@ -889,8 +966,20 @@ public static class GenericTypeExtensions
     private static System.Random RANDOM = new System.Random();
     public static int RANDOM_SEED = 13796240;
 
+    public static bool IsIndexValid<T>(this T[] array, int index)
+    {
+        return index >= 0 && index < array.Length;
+    }
+    public static bool IsIndexValid<T>(this List<T> collection, int index)
+    {
+        return index >= 0 && index < collection.Count;
+    }
+
 
     #region INTEGER
+
+    /// Stop writing 5 lines of code every time.
+    // 0.Random(min, max)
 
     public static int Random(this int value, int min, int max)
     {
@@ -935,6 +1024,9 @@ public static class GenericTypeExtensions
 
 
     #region FLOAT
+
+    /// Stop writing 5 lines of code every time.
+    // 0f.Random(min, max)
 
     public static float Random(this float value, float min, float max)
     {
@@ -1033,9 +1125,15 @@ public static class GenericTypeExtensions
     }
    
     //rounds the value to the specified number of decimal places
-    public static float Round(this float value, int digits)
+    public static float Round(this float value, int decimals)
     {
-        return (float)(Math.Round((double)value, digits));
+        return (float)(Math.Round((double)value, decimals));
+    }
+
+    //same ol same ol
+    public static float RoundDown(this float value, int decimals)
+    {
+        return Mathf.Floor(value * Mathf.Pow(10, decimals)) / Mathf.Pow(10, decimals);
     }
 
     #endregion
@@ -1207,6 +1305,203 @@ public static class GenericTypeExtensions
 public static class MathExtensions
 {
 
+
+    //The Clown Mathematics of .NET
+    /// You should use jobs for these if you're using them too often.
+    public static Vector3 Combine(this Vector3 a, Vector3 b)
+    {
+        return new Vector3(
+            a.x != 0 && b.x != 0 ? (a.x < 0 ? Mathf.Max(a.x, b.x) : Mathf.Min(a.x, b.x)) : a.x != 0 ? a.x : b.x,
+            a.y != 0 && b.y != 0 ? (a.y < 0 ? Mathf.Max(a.y, b.y) : Mathf.Min(a.y, b.y)) : a.y != 0 ? a.y : b.y,
+            a.z != 0 && b.z != 0 ? (a.z < 0 ? Mathf.Max(a.z, b.z) : Mathf.Min(a.z, b.z)) : a.z != 0 ? a.z : b.z
+        );
+    }
+    public static Vector3 Combine(this Vector3 a, Vector3 b, float t)
+    {
+        return new Vector3(
+            a.x != 0 && b.x != 0 ? Mathf.Lerp(a.x, (a.x < 0 ? Mathf.Max(a.x, b.x) : Mathf.Min(a.x, b.x)), t) : Mathf.Lerp(a.x, (a.x != 0 ? a.x : b.x), t),
+            a.y != 0 && b.y != 0 ? Mathf.Lerp(a.y, (a.y < 0 ? Mathf.Max(a.y, b.y) : Mathf.Min(a.y, b.y)), t) : Mathf.Lerp(a.y, (a.y != 0 ? a.y : b.y), t),
+            a.z != 0 && b.z != 0 ? Mathf.Lerp(a.z, (a.z < 0 ? Mathf.Max(a.z, b.z) : Mathf.Min(a.z, b.z)), t) : Mathf.Lerp(a.z, (a.z != 0 ? a.z : b.z), t)
+        );
+    }
+
+    public static Vector3 GetRandomPoint(this BoxCollider boxCollider)
+    {
+        if (boxCollider == null)
+        {
+            throw new ArgumentNullException(nameof(boxCollider), "BoxCollider cannot be null.");
+        }
+
+        Vector3 center = boxCollider.bounds.center;
+        Vector3 extents = boxCollider.bounds.extents;
+
+        float randomX = UnityEngine.Random.Range(center.x - extents.x, center.x + extents.x);
+        float randomY = UnityEngine.Random.Range(center.y - extents.y, center.y + extents.y);
+        float randomZ = UnityEngine.Random.Range(center.z - extents.z, center.z + extents.z);
+
+        return new Vector3(randomX, randomY, randomZ);
+    }
+    public static Vector3 GetRandomPoint(this SphereCollider sphereCollider)
+    {
+        if (sphereCollider == null)
+        {
+            throw new ArgumentNullException(nameof(sphereCollider), "SphereCollider cannot be null.");
+        }
+
+        Vector3 center = sphereCollider.bounds.center;
+        float radius = sphereCollider.radius;
+
+        // Generate a random point inside the sphere
+        Vector3 randomPoint = center + UnityEngine.Random.insideUnitSphere * radius;
+
+        return randomPoint;
+    }
+    public static Vector3 GetRandomPoint(this CapsuleCollider capsuleCollider)
+    {
+        if (capsuleCollider == null)
+        {
+            throw new ArgumentNullException(nameof(capsuleCollider), "CapsuleCollider cannot be null.");
+        }
+
+        Vector3 center = capsuleCollider.bounds.center;
+        Vector3 extents = capsuleCollider.bounds.extents;
+
+        float randomX = UnityEngine.Random.Range(center.x - extents.x, center.x + extents.x);
+        float randomY = UnityEngine.Random.Range(center.y - extents.y, center.y + extents.y);
+        float randomZ = UnityEngine.Random.Range(center.z - extents.z, center.z + extents.z);
+
+        return new Vector3(randomX, randomY, randomZ);
+    }
+    public static Vector3 GetRandomPoint(this MeshCollider meshCollider)
+    {
+        if (meshCollider == null)
+        {
+            throw new ArgumentNullException(nameof(meshCollider), "MeshCollider cannot be null.");
+        }
+
+        Vector3 center = meshCollider.bounds.center;
+        Vector3 extents = meshCollider.bounds.extents;
+
+        float randomX = UnityEngine.Random.Range(center.x - extents.x, center.x + extents.x);
+        float randomY = UnityEngine.Random.Range(center.y - extents.y, center.y + extents.y);
+        float randomZ = UnityEngine.Random.Range(center.z - extents.z, center.z + extents.z);
+
+        return new Vector3(randomX, randomY, randomZ);
+    }
+    public static Vector3 GetRandomPoint(this Collider collider)
+    {
+        if (collider == null)
+        {
+            throw new ArgumentNullException(nameof(collider), "Collider cannot be null.");
+        }
+
+        Vector3 randomPoint = Vector3.zero;
+
+        if (collider is BoxCollider boxCollider)
+        {
+            randomPoint = boxCollider.GetRandomPoint();
+        }
+        else if (collider is SphereCollider sphereCollider)
+        {
+            randomPoint = sphereCollider.GetRandomPoint();
+        }
+        else if (collider is CapsuleCollider capsuleCollider)
+        {
+            randomPoint = capsuleCollider.GetRandomPoint();
+        }
+        else if (collider is MeshCollider meshCollider)
+        {
+            randomPoint = meshCollider.GetRandomPoint();
+        }
+
+        return randomPoint;
+    }
+
+    ///
+
+    public static bool IsInsideGeometry(this Vector3 point, float precision = 0.1f)
+    {
+
+        int[] geometryLayers = new int[4];
+        geometryLayers[0] = UbraUtils.GetLayerIndex("Terrain");
+        geometryLayers[1] = UbraUtils.GetLayerIndex("Ground");
+        geometryLayers[2] = UbraUtils.GetLayerIndex("Surface");
+        geometryLayers[3] = UbraUtils.GetLayerIndex("Stairs");
+
+        Collider[] hitColliders = Physics.OverlapSphere(point, precision);
+        if (hitColliders.Length > 0)
+        {
+            // The point is inside at least one collider
+            foreach (var hitCollider in hitColliders)
+            {
+                // Check if the collider is part of the level geometry
+                for (int i = 0; i < geometryLayers.Length; i++)
+                {
+                    if (hitCollider.gameObject.layer == geometryLayers[i])
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    ///
+
+    public static bool IsWithinBoundaries(this Vector3 value, Collider collider)
+    {
+        if (collider == null)
+        {
+            throw new ArgumentNullException(nameof(collider), "Collider cannot be null.");
+        }
+
+        // Convert the point to the collider's local space
+        Vector3 localPoint = collider.transform.InverseTransformPoint(value);
+
+        // Adjust for scale
+        localPoint = Vector3.Scale(localPoint, collider.transform.localScale);
+
+        return collider.bounds.Contains(localPoint);
+    }
+    public static bool IsWithinBoundaries(this Vector3 value, MeshCollider collider)
+    {
+        if (collider == null)
+        {
+            throw new ArgumentNullException(nameof(collider), "MeshCollider cannot be null.");
+        }
+
+        // Convert the point to the collider's local space
+        Vector3 localPoint = collider.transform.InverseTransformPoint(value);
+
+        // Adjust for scale
+        localPoint = Vector3.Scale(localPoint, collider.transform.localScale);
+
+        Ray ray = new Ray(localPoint, Vector3.up); // cast ray upwards
+        RaycastHit hit;
+
+        int intersectCount = 0;
+        while (collider.Raycast(ray, out hit, Mathf.Infinity))
+        {
+            intersectCount++;
+            ray.origin = hit.point + ray.direction * 0.01f; // move the ray origin just beyond the hit point
+        }
+
+        return intersectCount % 2 == 1;
+    }
+
+    ///
+
+    public static Vector3 ZOffset(this Vector3 source, Vector3 target, float offset)
+    {
+        // Get the direction
+        Vector3 direction = (target - source).normalized;
+
+        // Apply the offset 
+        Vector3 offsetPosition = source + (direction * offset);
+
+        return offsetPosition;
+    }
     public static Vector3 GetCentroid(this Vector3[] value)
     {
         Vector3 centroid = new Vector3(0, 0, 0);
@@ -1220,12 +1515,13 @@ public static class MathExtensions
 
         return centroid;
     }
-
     public static float GetDiagonalLenght(this Vector3 value, float scale = 1f)
     {
         float diagonalLength = Mathf.Sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
         return diagonalLength * scale;
     }
+
+    ///
 
     public static float GetCommonDivisor(float valueA, float valueB, int iterations = 10)
     {
@@ -1297,6 +1593,7 @@ public static class MathExtensions
         return a;
     }
 
+    ///
 
     public static float ToRadius(this Vector3 value, float baseRadius)
     {
@@ -1307,9 +1604,6 @@ public static class MathExtensions
         float sphereVolume = (4f / 3f) * Mathf.PI * sphereRadius * sphereRadius * sphereRadius;
 
         return Mathf.Pow(cubeVolume / sphereVolume, 1f / 3f) * 0.1f;
-
-        // Set the scale of the sphere
-        // sphereTransform.localScale = new Vector3(scale, scale, scale);
     }
     public static Vector3 ToScale(this float value)
     {
@@ -1321,16 +1615,33 @@ public static class MathExtensions
         return scale;
     }
 
+    ///
+
+    public static float RawDistance(this Vector3 positionA, Vector3 positionB)
+    {
+        // Using the Pythagorean theorem 
+        float dx = positionB.x - positionA.x;
+        float dy = positionB.y - positionA.y;
+        float dz = positionB.z - positionA.z;
+        return Mathf.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
+    public static float NormalizedDistance(this Vector3 positionA, Vector3 positionB)
+    {
+        return (positionB - positionA).magnitude;
+    }
 
     public static float GetTargetDistance(this Transform value, Transform target)
     {
         return Vector3.Distance(value.position, target.position);
         //var closest = array.OrderBy(t => (t.transform.position - gameObject.transform.position).sqrMagnitude).FirstOrDefault();
     }
+    public static float GetTargetDistance(this Transform value, Vector3 target)
+    {
+        return Vector3.Distance(value.position, target);
+    }
     public static float GetTargetDistance(this Vector3 value, Vector3 target)
     {
         return Vector3.Distance(value, target);
-        //var closest = array.OrderBy(t => (t.transform.position - gameObject.transform.position).sqrMagnitude).FirstOrDefault();
     }
     public static Vector3 Direction(this Vector3 from, Vector3 to)
     {
