@@ -28,6 +28,10 @@ public struct StringWrapper
 {
     public string Value;
 }
+public struct GameObjectWrapper
+{
+    public GameObject Value;
+}
 
 [System.Serializable]
 public struct TransformDistance
@@ -334,8 +338,37 @@ public static class GameObjectExtensions
 
     #region Material and Renderer Handling Methods
 
+    // public static bool IsVisibleByTheCamera(this Renderer r)
+    // {
+        // /// This is not reliable at all
+        // ///bool isRendererVisible =  r.isVisible;
+
+        // Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Ubra.Ubra.Handler.MainCameraReference);
+        // if (GeometryUtility.TestPlanesAABB(planes, r.bounds))
+        // {
+            // return true;
+        // }
+        // else
+        // {
+            // return false;
+        // }
+    // }
+    // public static bool IsVisibleByTheCamera(this Collider c)
+    // {
+        // Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Ubra.Ubra.Handler.MainCameraReference);
+        // if (GeometryUtility.TestPlanesAABB(planes, c.bounds))
+        // {
+            // return true;
+        // }
+        // else
+        // {
+            // return false;
+        // }
+    // }
+
+
     /// Code from JohnStairs
-    public static void EnableZWrite(this Renderer r, string shaderName = "HDRP/Lit")
+    public static void EnableZWrite(this Renderer r, string shaderName = "URP/Lit")
     {
         Shader targetShader = Shader.Find(shaderName);
 
@@ -356,7 +389,7 @@ public static class GameObjectExtensions
                 switch (targetShader.name)
                 {
 
-                    case ("HDRP/Lit"):
+                    case ("URP/Lit"):
                         m.SetInt("_ZWrite", 1);
                         m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                         break;
@@ -370,8 +403,7 @@ public static class GameObjectExtensions
             }
         }
     }
-
-    public static void DisableZWrite(this Renderer r, string shaderName = "HDRP/Lit")
+    public static void DisableZWrite(this Renderer r, string shaderName = "URP/Lit")
     {
 
         Shader targetShader = Shader.Find(shaderName);
@@ -395,7 +427,7 @@ public static class GameObjectExtensions
                     switch (targetShader.name)
                     {
 
-                        case ("HDRP/Lit"):
+                        case ("URP/Lit"):
                             m.SetInt("_ZWrite", 0);
                             m.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 100;
                             break;
@@ -420,6 +452,17 @@ public static class GameObjectExtensions
 public static class AnimatorExtensions
 {
 
+    public static string GetActiveAnimation(this Animator animator)
+    {
+        if (animator.GetCurrentAnimatorClipInfo(0).Length > 0)
+        {
+            return animator.GetCurrentAnimatorClipInfo(0)[0].clip.name;
+        }
+        return null;
+    }
+
+#if UNITY_EDITOR
+
     public static void SetLength(this AnimationCurve curve, float lenght)
     {
         Keyframe[] keys = curve.keys;
@@ -429,32 +472,6 @@ public static class AnimatorExtensions
         }
         curve.keys = keys;
     }
-
-    public static bool IsAnimationPlaying(this Animator animator, string stateName, int layerIndex, string stateMachineName = "")
-    {
-
-        AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
-        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(layerIndex);
-
-        int currentAnimationHash = stateInfo.fullPathHash;
-
-        //string currentAnimationName = controller.GetChildStateMachine(currentAnimationHash, layerIndex).state.name;
-        string currentAnimationName = animator.GetActiveAnimatorState(layerIndex).state.name;
-
-        AnimatorState resultState = animator.GetAnimatorState(layerIndex, stateName, stateMachineName);
-        if (resultState != null)
-        {
-            //Debug.Log(" Trying to compare ::: " + resultState.name.ToString() + " to ::::" + currentAnimationName);
-
-            Debug.Log(" Trying to compare ::: " + resultState.name.ToString() + " to ::::" + currentAnimationName);
-
-            return resultState.nameHash == currentAnimationHash;
-            //return currentState.name == stateName;
-        }
-
-        return false;
-    }
-
 
     public static float GetLength(this Animator animator, string stateName, int layerIndex = 0)
     {
@@ -485,6 +502,34 @@ public static class AnimatorExtensions
             return 0f; // You can return 0 or another default value here
         }
     }
+
+
+    public static bool IsAnimationPlaying(this Animator animator, string stateName, int layerIndex, string stateMachineName = "")
+    {
+
+        AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
+        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(layerIndex);
+
+        int currentAnimationHash = stateInfo.fullPathHash;
+
+        //string currentAnimationName = controller.GetChildStateMachine(currentAnimationHash, layerIndex).state.name;
+        string currentAnimationName = animator.GetActiveAnimatorState(layerIndex).state.name;
+
+        AnimatorState resultState = animator.GetAnimatorState(layerIndex, stateName, stateMachineName);
+        if (resultState != null)
+        {
+            //Debug.Log(" Trying to compare ::: " + resultState.name.ToString() + " to ::::" + currentAnimationName);
+
+            Debug.Log(" Trying to compare ::: " + resultState.name.ToString() + " to ::::" + currentAnimationName);
+
+            return resultState.nameHash == currentAnimationHash;
+            //return currentState.name == stateName;
+        }
+
+        return false;
+    }
+
+
     public static ChildAnimatorState GetActiveAnimatorState(this Animator animator, int layerIndex)
     {
 
@@ -533,7 +578,6 @@ public static class AnimatorExtensions
         }
 
     }
-
 
     //
 
@@ -605,65 +649,175 @@ public static class AnimatorExtensions
         return animatorController.layers[layerIndex].stateMachine.stateMachines;
     }
 
-    public static AnimatorState GetAnimatorState(this Animator animator, int layerIndex, string desiredStateName, string stateMachineName)
+    public static AnimatorStateMachine GetChildStateMachine(this AnimatorStateMachine parentStateMachine, string childStateMachineName)
+    {
+        // Check each child state machine in the parent state machine
+        foreach (var childStateMachine in parentStateMachine.stateMachines)
+        {
+            if (childStateMachine.stateMachine.name.Equals(childStateMachineName))
+            {
+                // Return the matching child state machine
+                return childStateMachine.stateMachine;
+            }
+        }
+
+        // Child state machine not found
+        return null;
+    }
+
+    public static AnimatorState GetAnimatorStateRecursive(this AnimatorStateMachine stateMachine, string desiredStateName)
+    {
+        // Check each state in the current state machine
+        foreach (var state in stateMachine.states)
+        {
+            if (state.state.name.Equals(desiredStateName))
+            {
+                return state.state;
+            }
+        }
+
+        // Recursively check each child state machine
+        foreach (var childStateMachine in stateMachine.stateMachines)
+        {
+            var result = GetAnimatorStateRecursive(childStateMachine.stateMachine, desiredStateName);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+
+        // State not found in this state machine
+        return null;
+    }
+
+    public static AnimatorState GetAnimatorState(this Animator animator, int layerIndex, string desiredStateName, string stateMachineName, string childStateMachineName = "", bool debug = false)
     {
 
         // Get all states in the Animator Controller
         AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
-        ///AnimatorStateMachine rootStateMachine = controller.layers[layerIndex].stateMachine;
         ChildAnimatorStateMachine[] rootMachines = controller.GetStateMachines(layerIndex);
-        AnimatorState desiredResult = null;
-
-        /// ROOT LEVEL
 
         foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
         {
-
-            // Check if Desired StateMachine is at Root level
-
             if (subStateMachine.stateMachine.name.Equals(stateMachineName))
             {
 
-                // If it is, then get State from this State Machine
+                if (debug)
+                {
+                    Debug.Log(" Found state Machine :> " + subStateMachine.stateMachine.name);
+                }
 
-                desiredResult = subStateMachine.stateMachine.GetAnimatorState(desiredStateName);
+                // Use the recursive method to find the state
+                var desiredResult = subStateMachine.stateMachine.GetAnimatorStateRecursive(desiredStateName);
                 if (desiredResult != null)
                 {
-
-                    //Debug.Log(" State :: " + desiredResult.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
-
+                    /// Result is in State Machine Root Layer
+                    if (debug)
+                    {
+                        Debug.Log(" Returning ROOT state Machine :> " + subStateMachine.stateMachine.name);
+                    }
                     return desiredResult;
                 }
-            }
-
-        }
-
-        /// Branch LEVEL
-
-        foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
-        {
-
-            if (subStateMachine.stateMachine.name.Equals(stateMachineName))
-            {
-
-                ChildAnimatorState branch = controller.GetChildStateMachine(desiredStateName, layerIndex);
-                if (branch.state.name.Equals(stateMachineName))
+                else
                 {
+                    /// Look again in Branch Layers
+                    foreach (var childStateMachine in subStateMachine.stateMachine.stateMachines)
+                    {
 
-                    //Debug.Log(" State :: " + branch.state.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
+                        if (string.IsNullOrEmpty(childStateMachineName))
+                        {
+                            return null;
+                        }
 
-                    return branch.state;
+                        if (debug)
+                        {
+                            Debug.Log(" Found BRANCH state Machine :> " + childStateMachine.stateMachine.name);
+                        }
+
+                        var result = childStateMachine.stateMachine.GetAnimatorStateRecursive(desiredStateName);
+                        if (result != null)
+                        {
+                            return result;
+                        }
+
+                        //if (subStateMachine.stateMachine.name.Equals(childStateMachineName))
+                        //{
+
+                        //    if (debug)
+                        //    {
+                        //        Debug.Log(" Found state Machine :> " + childStateMachine.stateMachine.name);
+                        //    }
+                        //}
+
+                    }
                 }
-
             }
-
         }
 
         Debug.Log("State " + desiredStateName + " not Found!");
         return null;
-
     }
 
+    //public static AnimatorState GetAnimatorState(this Animator animator, int layerIndex, string desiredStateName, string stateMachineName)
+    //{
+
+    //    // Get all states in the Animator Controller
+    //    AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
+    //    ///AnimatorStateMachine rootStateMachine = controller.layers[layerIndex].stateMachine;
+    //    ChildAnimatorStateMachine[] rootMachines = controller.GetStateMachines(layerIndex);
+    //    AnimatorState desiredResult = null;
+
+    //    /// ROOT LEVEL
+
+    //    foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
+    //    {
+
+    //        // Check if Desired StateMachine is at Root level
+
+    //        if (subStateMachine.stateMachine.name.Equals(stateMachineName))
+    //        {
+
+    //            // If it is, then get State from this State Machine
+
+    //            desiredResult = subStateMachine.stateMachine.GetAnimatorState(desiredStateName);
+    //            if (desiredResult != null)
+    //            {
+
+    //                //Debug.Log(" State :: " + desiredResult.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
+
+    //                return desiredResult;
+    //            }
+    //        }
+
+    //    }
+
+    //    /// Branch LEVEL
+
+    //    foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
+    //    {
+
+    //        if (subStateMachine.stateMachine.name.Equals(stateMachineName))
+    //        {
+
+    //            ChildAnimatorState branch = controller.GetChildStateMachine(desiredStateName, layerIndex);
+    //            if (branch.state.name.Equals(stateMachineName))
+    //            {
+
+    //                //Debug.Log(" State :: " + branch.state.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
+
+    //                return branch.state;
+    //            }
+
+    //        }
+
+    //    }
+
+    //    Debug.Log("State " + desiredStateName + " not Found!");
+    //    return null;
+
+    //}
+
+#endif
 
     public static string GetAnimatorLayerName(this Animator animator, int layerIndex)
     {
@@ -770,26 +924,26 @@ public static class TransformExtensions
         return value.rotation;
     }
 
-    //Smooth the Look operation using Coroutines.
-    // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
-    public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
-    {
+    // //Smooth the Look operation using Coroutines.
+    // // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
+    // public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
+    // {
 
-        isFinished = false;
+        // isFinished = false;
 
-        BoolWrapper statusWrapper = new BoolWrapper();
-        statusWrapper.Value = false;
-        isFinished = statusWrapper.Value;
+        // BoolWrapper statusWrapper = new BoolWrapper();
+        // statusWrapper.Value = false;
+        // isFinished = statusWrapper.Value;
 
-        System.Action result = () =>
-        {
-            //Swap this with any Singleton inheriting from MonoBehaviour
-            /// Singleton.Instance.StartCoroutine
-            Ubra.Ubra.Instance.StartCoroutine(LookAtCoroutine(value, target, speed, maxTimeSpan, statusWrapper.Value));
-        };
+        // System.Action result = () =>
+        // {
+            // //Swap this with any Singleton inheriting from MonoBehaviour
+            // /// Singleton.Instance.StartCoroutine
+            // Ubra.Ubra.Instance.StartCoroutine(LookAtCoroutine(value, target, speed, maxTimeSpan, statusWrapper.Value));
+        // };
 
-        result();
-    }
+        // result();
+    // }
 
     //You can retrieve the operation status by using a bool wrapper
     public static IEnumerator LookAtCoroutine(Transform value, Transform target, float timeToLookAt, float maxTimeSpan, bool status)
@@ -1019,6 +1173,17 @@ public static class GenericTypeExtensions
         return normalizedValue;
     }
 
+    //rounds the value to the nearest tens
+    public static int RoundToTens(this int value)
+    {
+        return (int)(Math.Round((double)value / 10) * 10);
+    }
+
+    //rounds down the value to the nearest tens
+    public static int RoundDownToTens(this int value)
+    {
+        return (value / 10) * 10;
+    }
 
     #endregion
 
@@ -1131,6 +1296,21 @@ public static class GenericTypeExtensions
     }
 
     //same ol same ol
+    public static float RoundUp(this float value)
+    {
+        return (float)System.Math.Ceiling(value);
+    }
+
+    public static float RoundUp(this float value, int decimals)
+    {
+        return (float)System.Math.Round(value * Mathf.Pow(10, decimals)) / Mathf.Pow(10, decimals);
+    }
+
+
+    public static float RoundDown(this float value)
+    {
+        return Mathf.Floor(value);
+    }
     public static float RoundDown(this float value, int decimals)
     {
         return Mathf.Floor(value * Mathf.Pow(10, decimals)) / Mathf.Pow(10, decimals);
