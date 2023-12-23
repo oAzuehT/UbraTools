@@ -5,7 +5,9 @@ using System.Text;
 using System.Linq.Expressions;
 using System.Collections.Generic;
 using System.Linq;
+#if UNITY_EDITOR
 using UnityEditor.Animations;
+#endif
 using Ubra.Engine.Core;
 
 public class Ref<T> where T : struct
@@ -65,14 +67,12 @@ public struct BoneTransform
 }
 
 
-
 public static class UbraUtils
 {
 
     /// To use these Methods add:
     // using static UbraUtils;
     /// to your header
-
 
     #region DEBUG Methods
 
@@ -199,7 +199,6 @@ public static class UbraUtils
     
     #endregion
 
-
     //Returns a variable NAME.
     ///Example: string variableName = GetPropertyName(() => SomeClass.SomeProperty);
     public static string GetPropertyName<T>(Expression<Func<T>> propertyLambda) //returns variable name 
@@ -214,17 +213,13 @@ public static class UbraUtils
         return me.Member.Name;
     }
 
-
     //Consider using LayerMask.NameToLayer instead
     public static int GetLayerIndex(string layerName)
     {
         return (int)Mathf.Log(LayerMask.GetMask(layerName), 2);
     }
 
-
-
 }
-
 
 public static class GameObjectExtensions
 {    
@@ -251,18 +246,26 @@ public static class GameObjectExtensions
     {
 
         T[] children = instance.GetComponentsInChildren<T>();
-        if(children.Length > 0)
+        if (children.Length > 0)
         {
             for (int i = 0; i < children.Length; i++)
             {
-                if (Application.isPlaying)
+                try
                 {
-                    UnityEngine.Object.Destroy(children[i]);
+                    if (Application.isPlaying)
+                    {
+                        UnityEngine.Object.Destroy(children[i]);
+                    }
+                    else
+                    {
+                        UnityEngine.Object.DestroyImmediate(children[i]);
+                    }
                 }
-                else
+                catch (System.Exception ex)
                 {
-                    UnityEngine.Object.DestroyImmediate(children[i]);
-                }              
+                    // Log the exception (optional)
+                    Debug.LogError("Exception caught: " + ex.Message);
+                }
             }
         }
 
@@ -338,36 +341,79 @@ public static class GameObjectExtensions
 
     #region Material and Renderer Handling Methods
 
-    // public static bool IsVisibleByTheCamera(this Renderer r)
-    // {
-        // /// This is not reliable at all
-        // ///bool isRendererVisible =  r.isVisible;
 
-        // Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Ubra.Ubra.Handler.MainCameraReference);
-        // if (GeometryUtility.TestPlanesAABB(planes, r.bounds))
-        // {
-            // return true;
-        // }
-        // else
-        // {
-            // return false;
-        // }
-    // }
-    // public static bool IsVisibleByTheCamera(this Collider c)
-    // {
-        // Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Ubra.Ubra.Handler.MainCameraReference);
-        // if (GeometryUtility.TestPlanesAABB(planes, c.bounds))
-        // {
-            // return true;
-        // }
-        // else
-        // {
-            // return false;
-        // }
-    // }
+    /// WHy? Because Renderer.isRendererVisible is not reliable.
+    #if UBRA
+    public static bool IsVisibleByTheCamera(this Renderer r)
+    {
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Ubra.Ubra.Handler.MainCameraReference);
+        if (GeometryUtility.TestPlanesAABB(planes, r.bounds))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    public static bool IsVisibleByTheCamera(this Collider c)
+    {
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(Ubra.Ubra.Handler.MainCameraReference);
+        if (GeometryUtility.TestPlanesAABB(planes, c.bounds))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+#else
+    public static bool IsVisibleByTheCamera(this Renderer r, UnityEngine.Camera camera)
+    {
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(camera);
+        if (GeometryUtility.TestPlanesAABB(planes, r.bounds))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    public static bool IsVisibleByTheCamera(this Collider c, UnityEngine.Camera camera)
+    {
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(camera);
+        if (GeometryUtility.TestPlanesAABB(planes, c.bounds))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+#endif
 
+    // Creates an Identic Copy of a material
+    public static Material Clone(this Material source)
+    {       
+        Shader shader = Shader.Find(source.shader.name);
+        Material result = new Material(shader);
+        result.shader = shader;
+        result.CopyPropertiesFromMaterial(source);
+        return result;
+    }
+    public static void Clone(this Material source, Material target)
+    {
+        
+        Shader shader = Shader.Find(source.shader.name);
+        target.shader = shader;
 
-    /// Code from JohnStairs
+        target.CopyPropertiesFromMaterial(source);
+    }
+
+    /// Code from JohnStairs - CopyPaste Template
     public static void EnableZWrite(this Renderer r, string shaderName = "URP/Lit")
     {
         Shader targetShader = Shader.Find(shaderName);
@@ -442,21 +488,55 @@ public static class GameObjectExtensions
             }
         }
     }
-        
 
     #endregion
 
+    public static void CopyRigidBodyData(this Rigidbody sourceRb, Rigidbody destinationRb)
+    {
+        destinationRb.mass = sourceRb.mass;
+        destinationRb.drag = sourceRb.drag;
+        destinationRb.angularDrag = sourceRb.angularDrag;
+        destinationRb.useGravity = sourceRb.useGravity;
+        destinationRb.isKinematic = sourceRb.isKinematic;
+        destinationRb.interpolation = sourceRb.interpolation;
+        destinationRb.collisionDetectionMode = sourceRb.collisionDetectionMode;
+        destinationRb.constraints = sourceRb.constraints;
+    }
+
+    public static void CopyJointData(this CharacterJoint sourceJoint, CharacterJoint destinationJoint)
+    {
+        destinationJoint.anchor = sourceJoint.anchor;
+        destinationJoint.axis = sourceJoint.axis;
+        destinationJoint.autoConfigureConnectedAnchor = sourceJoint.autoConfigureConnectedAnchor;
+        destinationJoint.connectedAnchor = sourceJoint.connectedAnchor;
+        destinationJoint.connectedBody = sourceJoint.connectedBody;
+        destinationJoint.enableCollision = sourceJoint.enableCollision;
+        destinationJoint.swingAxis = sourceJoint.swingAxis;
+        destinationJoint.lowTwistLimit = CopySoftJointLimit(sourceJoint.lowTwistLimit);
+        destinationJoint.highTwistLimit = CopySoftJointLimit(sourceJoint.highTwistLimit);
+        destinationJoint.swing1Limit = CopySoftJointLimit(sourceJoint.swing1Limit);
+        destinationJoint.swing2Limit = CopySoftJointLimit(sourceJoint.swing2Limit);
+    }
+
+    public static SoftJointLimit CopySoftJointLimit(SoftJointLimit sourceLimit)
+    {
+        SoftJointLimit newLimit = new SoftJointLimit();
+        newLimit.limit = sourceLimit.limit;
+        newLimit.bounciness = sourceLimit.bounciness;
+        newLimit.contactDistance = sourceLimit.contactDistance;
+        return newLimit;
+    }
 
 }
 
 public static class AnimatorExtensions
 {
 
-    public static string GetActiveAnimation(this Animator animator)
+    public static string GetActiveAnimation(this Animator animator, int layer = 0)
     {
-        if (animator.GetCurrentAnimatorClipInfo(0).Length > 0)
+        if (animator.GetCurrentAnimatorClipInfo(layer).Length > 0)
         {
-            return animator.GetCurrentAnimatorClipInfo(0)[0].clip.name;
+            return animator.GetCurrentAnimatorClipInfo(layer)[layer].clip.name;
         }
         return null;
     }
@@ -472,7 +552,6 @@ public static class AnimatorExtensions
         }
         curve.keys = keys;
     }
-
     public static float GetLength(this Animator animator, string stateName, int layerIndex = 0)
     {
 
@@ -502,8 +581,6 @@ public static class AnimatorExtensions
             return 0f; // You can return 0 or another default value here
         }
     }
-
-
     public static bool IsAnimationPlaying(this Animator animator, string stateName, int layerIndex, string stateMachineName = "")
     {
 
@@ -520,7 +597,7 @@ public static class AnimatorExtensions
         {
             //Debug.Log(" Trying to compare ::: " + resultState.name.ToString() + " to ::::" + currentAnimationName);
 
-            Debug.Log(" Trying to compare ::: " + resultState.name.ToString() + " to ::::" + currentAnimationName);
+            Debug.Log(" Trying to compare ::: " + resultState.name.ToString() + " to :::: " + currentAnimationName);
 
             return resultState.nameHash == currentAnimationHash;
             //return currentState.name == stateName;
@@ -528,7 +605,6 @@ public static class AnimatorExtensions
 
         return false;
     }
-
 
     public static ChildAnimatorState GetActiveAnimatorState(this Animator animator, int layerIndex)
     {
@@ -579,8 +655,6 @@ public static class AnimatorExtensions
 
     }
 
-    //
-
     private static AnimatorState GetAnimatorState(this AnimatorStateMachine stateMachine, int nameHash)
     {
         foreach (ChildAnimatorState state in stateMachine.states)
@@ -597,7 +671,6 @@ public static class AnimatorExtensions
     }
     private static AnimatorState GetAnimatorState(this AnimatorStateMachine stateMachine, string stateName)
     {
-
         foreach (ChildAnimatorState state in stateMachine.states)
         {
             // Compare the fullPathHash of each state with the current state hash code
@@ -607,11 +680,65 @@ public static class AnimatorExtensions
                 return state.state;
             }
         }
-
         return null;
     }
+    public static AnimatorState GetAnimatorState(this Animator animator, int layerIndex, string desiredStateName, string stateMachineName, string childStateMachineName = "", bool debug = false)
+    {
 
-    //
+        // Get all states in the Animator Controller
+        AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
+        ChildAnimatorStateMachine[] rootMachines = controller.GetStateMachines(layerIndex);
+
+        foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
+        {
+            if (subStateMachine.stateMachine.name.Equals(stateMachineName))
+            {
+
+                if (debug)
+                {
+                    Debug.Log(" Found state Machine :> " + subStateMachine.stateMachine.name);
+                }
+
+                // Use the recursive method to find the state
+                var desiredResult = subStateMachine.stateMachine.GetAnimatorStateRecursive(desiredStateName);
+                if (desiredResult != null)
+                {
+                    /// Result is in State Machine Root Layer
+                    if (debug)
+                    {
+                        Debug.Log(" Returning ROOT state Machine :> " + subStateMachine.stateMachine.name);
+                    }
+                    return desiredResult;
+                }
+                else
+                {
+                    /// Look again in Branch Layers
+                    foreach (var childStateMachine in subStateMachine.stateMachine.stateMachines)
+                    {
+
+                        if (string.IsNullOrEmpty(childStateMachineName))
+                        {
+                            return null;
+                        }
+
+                        if (debug)
+                        {
+                            Debug.Log(" Found BRANCH state Machine :> " + childStateMachine.stateMachine.name);
+                        }
+
+                        var result = childStateMachine.stateMachine.GetAnimatorStateRecursive(desiredStateName);
+                        if (result != null)
+                        {
+                            return result;
+                        }
+                    }
+                }
+            }
+        }
+
+        Debug.Log("State " + desiredStateName + " not Found!");
+        return null;
+    }
 
     public static ChildAnimatorState GetChildStateMachine(this AnimatorController animatorController, string stateName, int layerIndex)
     {
@@ -690,133 +817,6 @@ public static class AnimatorExtensions
         return null;
     }
 
-    public static AnimatorState GetAnimatorState(this Animator animator, int layerIndex, string desiredStateName, string stateMachineName, string childStateMachineName = "", bool debug = false)
-    {
-
-        // Get all states in the Animator Controller
-        AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
-        ChildAnimatorStateMachine[] rootMachines = controller.GetStateMachines(layerIndex);
-
-        foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
-        {
-            if (subStateMachine.stateMachine.name.Equals(stateMachineName))
-            {
-
-                if (debug)
-                {
-                    Debug.Log(" Found state Machine :> " + subStateMachine.stateMachine.name);
-                }
-
-                // Use the recursive method to find the state
-                var desiredResult = subStateMachine.stateMachine.GetAnimatorStateRecursive(desiredStateName);
-                if (desiredResult != null)
-                {
-                    /// Result is in State Machine Root Layer
-                    if (debug)
-                    {
-                        Debug.Log(" Returning ROOT state Machine :> " + subStateMachine.stateMachine.name);
-                    }
-                    return desiredResult;
-                }
-                else
-                {
-                    /// Look again in Branch Layers
-                    foreach (var childStateMachine in subStateMachine.stateMachine.stateMachines)
-                    {
-
-                        if (string.IsNullOrEmpty(childStateMachineName))
-                        {
-                            return null;
-                        }
-
-                        if (debug)
-                        {
-                            Debug.Log(" Found BRANCH state Machine :> " + childStateMachine.stateMachine.name);
-                        }
-
-                        var result = childStateMachine.stateMachine.GetAnimatorStateRecursive(desiredStateName);
-                        if (result != null)
-                        {
-                            return result;
-                        }
-
-                        //if (subStateMachine.stateMachine.name.Equals(childStateMachineName))
-                        //{
-
-                        //    if (debug)
-                        //    {
-                        //        Debug.Log(" Found state Machine :> " + childStateMachine.stateMachine.name);
-                        //    }
-                        //}
-
-                    }
-                }
-            }
-        }
-
-        Debug.Log("State " + desiredStateName + " not Found!");
-        return null;
-    }
-
-    //public static AnimatorState GetAnimatorState(this Animator animator, int layerIndex, string desiredStateName, string stateMachineName)
-    //{
-
-    //    // Get all states in the Animator Controller
-    //    AnimatorController controller = animator.runtimeAnimatorController as AnimatorController;
-    //    ///AnimatorStateMachine rootStateMachine = controller.layers[layerIndex].stateMachine;
-    //    ChildAnimatorStateMachine[] rootMachines = controller.GetStateMachines(layerIndex);
-    //    AnimatorState desiredResult = null;
-
-    //    /// ROOT LEVEL
-
-    //    foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
-    //    {
-
-    //        // Check if Desired StateMachine is at Root level
-
-    //        if (subStateMachine.stateMachine.name.Equals(stateMachineName))
-    //        {
-
-    //            // If it is, then get State from this State Machine
-
-    //            desiredResult = subStateMachine.stateMachine.GetAnimatorState(desiredStateName);
-    //            if (desiredResult != null)
-    //            {
-
-    //                //Debug.Log(" State :: " + desiredResult.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
-
-    //                return desiredResult;
-    //            }
-    //        }
-
-    //    }
-
-    //    /// Branch LEVEL
-
-    //    foreach (ChildAnimatorStateMachine subStateMachine in rootMachines)
-    //    {
-
-    //        if (subStateMachine.stateMachine.name.Equals(stateMachineName))
-    //        {
-
-    //            ChildAnimatorState branch = controller.GetChildStateMachine(desiredStateName, layerIndex);
-    //            if (branch.state.name.Equals(stateMachineName))
-    //            {
-
-    //                //Debug.Log(" State :: " + branch.state.name + " found in Child State Machine::" + subStateMachine.stateMachine.name);
-
-    //                return branch.state;
-    //            }
-
-    //        }
-
-    //    }
-
-    //    Debug.Log("State " + desiredStateName + " not Found!");
-    //    return null;
-
-    //}
-
 #endif
 
     public static string GetAnimatorLayerName(this Animator animator, int layerIndex)
@@ -889,61 +889,63 @@ public static class TransformExtensions
         ///value.rotation = Quaternion.LookRotation(target.position - value.position);
     }
 
+    // Get the result of the LookTo operation
     public static Quaternion LookToResult(this Transform value, Transform target)
     {
 
         Vector3 direction = target.position - value.position;
+        Quaternion rotation = value.rotation;
 
         // Check if the direction vector is not zero
         if (direction != Vector3.zero)
         {
-            value.rotation = Quaternion.LookRotation(direction);
+            rotation = Quaternion.LookRotation(direction);
         }
         else
         {
-            value.rotation = Quaternion.identity;
+            rotation = Quaternion.identity;
         }
 
-        return value.rotation;
+        return rotation;
     }
-
     public static Quaternion LookToResult(this Transform value, Vector3 target)
     {
         Vector3 direction = target - value.position;
+        Quaternion rotation = value.rotation;
 
         // Check if the direction vector is not zero
         if (direction != Vector3.zero)
         {
-            value.rotation = Quaternion.LookRotation(direction);
+            rotation = Quaternion.LookRotation(direction);
         }
         else
         {
-            value.rotation = Quaternion.identity;
+            rotation = Quaternion.identity;
         }
 
-        return value.rotation;
+        return rotation;
     }
 
-    // //Smooth the Look operation using Coroutines.
-    // // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
-    // public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
-    // {
+    //Smooth the Look operation using Coroutines.
+    // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
+    public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
+    {
 
-        // isFinished = false;
+        isFinished = false;
 
-        // BoolWrapper statusWrapper = new BoolWrapper();
-        // statusWrapper.Value = false;
-        // isFinished = statusWrapper.Value;
+        BoolWrapper statusWrapper = new BoolWrapper();
+        statusWrapper.Value = false;
+        isFinished = statusWrapper.Value;
 
-        // System.Action result = () =>
-        // {
-            // //Swap this with any Singleton inheriting from MonoBehaviour
-            // /// Singleton.Instance.StartCoroutine
-            // Ubra.Ubra.Instance.StartCoroutine(LookAtCoroutine(value, target, speed, maxTimeSpan, statusWrapper.Value));
-        // };
+        System.Action result = () =>
+        {
+            //Swap this with any Singleton inheriting from MonoBehaviour
+            /// Singleton.Instance.StartCoroutine
+            Ubra.Ubra.Instance.StartCoroutine(LookAtCoroutine(value, target, speed, maxTimeSpan, statusWrapper.Value));
+        };
 
-        // result();
-    // }
+        result();
+    }
 
     //You can retrieve the operation status by using a bool wrapper
     public static IEnumerator LookAtCoroutine(Transform value, Transform target, float timeToLookAt, float maxTimeSpan, bool status)
@@ -1129,8 +1131,35 @@ public static class GenericTypeExtensions
         return index >= 0 && index < collection.Count;
     }
 
+    /// Generic Data Types    
+    public static T[] RemoveNulls<T>(this T[] array)
+    {
+        return array.Where(item => item != null).ToArray();
+    }
+    public static List<T> RemoveNulls<T>(this List<T> list)
+    {
+        return list.Where(item => item != null).ToList();
+    }
+    public static Dictionary<TKey, TValue> RemoveNulls<TKey, TValue>(this Dictionary<TKey, TValue> dictionary)
+    {
+        return dictionary.Where(pair => pair.Value != null).ToDictionary(pair => pair.Key, pair => pair.Value);
+    }
 
-    #region INTEGER
+    /// 'Nulls' that arent really Nulls -> Unity Objects
+    public static T[] RemoveEmpty<T>(this T[] array) where T : class
+    {
+        return array.Where(item => item as UnityEngine.Object != null).ToArray();
+    }
+    public static List<T> RemoveEmpty<T>(this List<T> list) where T : class
+    {
+        return list.Where(item => item as UnityEngine.Object != null).ToList();
+    }
+    public static Dictionary<TKey, TValue> RemoveEmpty<TKey, TValue>(this Dictionary<TKey, TValue> dictionary) where TValue : class
+    {
+        return dictionary.Where(pair => pair.Value as UnityEngine.Object != null).ToDictionary(pair => pair.Key, pair => pair.Value);
+    }
+
+#region INTEGER
 
     /// Stop writing 5 lines of code every time.
     // 0.Random(min, max)
@@ -1185,10 +1214,10 @@ public static class GenericTypeExtensions
         return (value / 10) * 10;
     }
 
-    #endregion
+#endregion
 
 
-    #region FLOAT
+#region FLOAT
 
     /// Stop writing 5 lines of code every time.
     // 0f.Random(min, max)
@@ -1300,12 +1329,10 @@ public static class GenericTypeExtensions
     {
         return (float)System.Math.Ceiling(value);
     }
-
     public static float RoundUp(this float value, int decimals)
     {
         return (float)System.Math.Round(value * Mathf.Pow(10, decimals)) / Mathf.Pow(10, decimals);
     }
-
 
     public static float RoundDown(this float value)
     {
@@ -1316,10 +1343,26 @@ public static class GenericTypeExtensions
         return Mathf.Floor(value * Mathf.Pow(10, decimals)) / Mathf.Pow(10, decimals);
     }
 
-    #endregion
+    public static int DecimalCount(this float number)
+    {
+        float fraction = number - Mathf.Floor(number);
+        int decimalCount = 0;
+
+        /// Limiting to 15 decimal places
+        while (fraction > Mathf.Epsilon && decimalCount < 15)
+        {
+            fraction *= 10;
+            fraction = fraction - Mathf.Floor(fraction);
+            decimalCount++;
+        }
+
+        return decimalCount;
+    }
+
+#endregion
 
 
-    #region STRING
+#region STRING
 
     public static char GetRandomCharacter(this string value)
     {
@@ -1407,7 +1450,7 @@ public static class GenericTypeExtensions
         return sb.ToString();
     }
 
-    #endregion
+#endregion
 
 
     //Guid - Guid merge
@@ -1485,7 +1528,6 @@ public static class GenericTypeExtensions
 public static class MathExtensions
 {
 
-
     //The Clown Mathematics of .NET
     /// You should use jobs for these if you're using them too often.
     public static Vector3 Combine(this Vector3 a, Vector3 b)
@@ -1504,6 +1546,8 @@ public static class MathExtensions
             a.z != 0 && b.z != 0 ? Mathf.Lerp(a.z, (a.z < 0 ? Mathf.Max(a.z, b.z) : Mathf.Min(a.z, b.z)), t) : Mathf.Lerp(a.z, (a.z != 0 ? a.z : b.z), t)
         );
     }
+
+    // Collision Methods
 
     public static Vector3 GetRandomPoint(this BoxCollider boxCollider)
     {
@@ -1597,8 +1641,6 @@ public static class MathExtensions
         return randomPoint;
     }
 
-    ///
-
     public static bool IsInsideGeometry(this Vector3 point, float precision = 0.1f)
     {
 
@@ -1626,9 +1668,126 @@ public static class MathExtensions
         }
         return false;
     }
+    public static bool IsOverlapping(this Collider col, Collider target)
+    {
+        return col.bounds.Intersects(target.bounds);
+    }
+    /// Default Break Attempt
+    public static void BreakOverlap(this Collider col, Collider target)
+    {
+        
+        int iterations = 0;   
+        while(col.IsOverlapping(target) && iterations < 10)
+        {
+            // Compute the minimum translation required to separate the colliders
+            Vector3 direction;
+            float distance;
+            Physics.ComputePenetration(col, col.transform.position, col.transform.rotation, target, target.transform.position, target.transform.rotation, out direction, out distance);
 
-    ///
+            // Adjust the size of the colliders
+            if (col is SphereCollider)
+            {
+                SphereCollider sphereCollider = col as SphereCollider;
+                sphereCollider.radius -= distance / 2;
+            }
+            else if (col is BoxCollider)
+            {
+                BoxCollider boxCollider = col as BoxCollider;
+                boxCollider.size -= Vector3.one * distance;
+            }
+            else if (col is CapsuleCollider)
+            {
+                CapsuleCollider capsuleCollider = col as CapsuleCollider;
+                capsuleCollider.height -= distance;
+                capsuleCollider.radius -= distance / 2;
+            }
 
+            iterations++;
+        }
+    }
+    /// Height Break Attempt - Preserving Width
+    public static void BreakHeightOverlap(this Collider col, Collider target)
+    {
+
+        int iterations = 0;
+        while (col.IsOverlapping(target) && iterations < 10)
+        {
+            // Compute the minimum translation required to separate the colliders
+            Vector3 direction;
+            float distance;
+            Physics.ComputePenetration(col, col.transform.position, col.transform.rotation, target, target.transform.position, target.transform.rotation, out direction, out distance);
+
+            // Adjust the size of the colliders
+            if (col is SphereCollider)
+            {
+                SphereCollider sphereCollider = col as SphereCollider;
+                sphereCollider.radius -= distance / 2;
+            }
+            else if (col is BoxCollider)
+            {
+                BoxCollider boxCollider = col as BoxCollider;
+                boxCollider.size = new Vector3(boxCollider.size.x, boxCollider.size.y - 1 * distance, boxCollider.size.z);
+            }
+            else if (col is CapsuleCollider)
+            {
+                CapsuleCollider capsuleCollider = col as CapsuleCollider;
+                capsuleCollider.height -= distance;
+            }
+
+            iterations++;
+        }
+    }
+    /// Width Break Attempt - Preserving Height
+    public static void BreakWidthOverlap(this Collider col, Collider target)
+    {
+
+        int iterations = 0;
+        while (col.IsOverlapping(target) && iterations < 10)
+        {
+            // Compute the minimum translation required to separate the colliders
+            Vector3 direction;
+            float distance;
+            Physics.ComputePenetration(col, col.transform.position, col.transform.rotation, target, target.transform.position, target.transform.rotation, out direction, out distance);
+
+            // Adjust the size of the colliders
+            if (col is SphereCollider)
+            {
+                SphereCollider sphereCollider = col as SphereCollider;
+                sphereCollider.radius -= distance / 2;
+            }
+            else if (col is BoxCollider)
+            {
+                BoxCollider boxCollider = col as BoxCollider;
+                boxCollider.size = new Vector3(boxCollider.size.x - 1 * distance, boxCollider.size.y, boxCollider.size.z);
+            }
+            else if (col is CapsuleCollider)
+            {
+                CapsuleCollider capsuleCollider = col as CapsuleCollider;
+                capsuleCollider.radius -= distance / 2;
+            }
+
+            iterations++;
+        }
+    }
+    /// Position Break Attempt - Preserving Mass
+    public static void BreakPositionOverlap(this Collider col, Collider target)
+    {
+
+        int iterations = 0;
+        while (col.IsOverlapping(target) && iterations < 10)
+        {
+            // Compute the minimum translation required to separate the colliders
+            Vector3 direction;
+            float distance;
+            Physics.ComputePenetration(col, col.transform.position, col.transform.rotation, target, target.transform.position, target.transform.rotation, out direction, out distance);
+
+            // Adjust the position of the first collider
+            col.transform.position = col.transform.position + direction * distance;
+
+            iterations++;
+        }
+    }
+    /// 
     public static bool IsWithinBoundaries(this Vector3 value, Collider collider)
     {
         if (collider == null)
@@ -1670,7 +1829,7 @@ public static class MathExtensions
         return intersectCount % 2 == 1;
     }
 
-    ///
+    //
 
     public static Vector3 ZOffset(this Vector3 source, Vector3 target, float offset)
     {
@@ -1701,14 +1860,11 @@ public static class MathExtensions
         return diagonalLength * scale;
     }
 
-    ///
-
     public static float GetCommonDivisor(float valueA, float valueB, int iterations = 10)
     {
         return ApproximateGCD(valueA, valueB, iterations);
     }
-
-    // Calculate Greatest Common Divisor
+    /// Calculate Greatest Common Divisor
     public static float ForbiddenGCD(float a, float b, float tolerance = 1e-6f)
     {
 
@@ -1739,7 +1895,7 @@ public static class MathExtensions
 
         return a;
     }
-    // 'Calculate' Greatest Common Divisor
+    /// 'Calculate' Greatest Common Divisor
     public static float ApproximateGCD(float a, float b, int maxIterations = 100, float tolerance = 1e-6f)
     {
 
@@ -1773,7 +1929,7 @@ public static class MathExtensions
         return a;
     }
 
-    ///
+    // Scale Methods
 
     public static float ToRadius(this Vector3 value, float baseRadius)
     {
@@ -1795,7 +1951,7 @@ public static class MathExtensions
         return scale;
     }
 
-    ///
+    // Distance Methods
 
     public static float RawDistance(this Vector3 positionA, Vector3 positionB)
     {
@@ -1823,6 +1979,37 @@ public static class MathExtensions
     {
         return Vector3.Distance(value, target);
     }
+
+    public static Quaternion GetRotation(this Vector3 value, Vector3 target)
+    {
+
+        value.Normalize();
+        target.Normalize();
+    
+        float dot = Vector3.Dot(value, target);
+        if (dot < -0.999999f) // Vectors are nearly opposite
+        {
+            Vector3 orthogonal = Vector3.Cross(value, new Vector3(1, 0, 0));
+            // If value was parallel with (1, 0, 0), choose (0, 1, 0) instead
+            if (orthogonal.sqrMagnitude < 0.01f) 
+            {
+                orthogonal = Vector3.Cross(value, new Vector3(0, 1, 0));
+            }
+            orthogonal.Normalize();
+
+            return new Quaternion(orthogonal.x, orthogonal.y, orthogonal.z, 0);
+        }
+        else
+        {
+            Vector3 cross = Vector3.Cross(value, target);
+            float w = Mathf.Sqrt((value.sqrMagnitude) * (target.sqrMagnitude)) + dot;
+            Quaternion rotation = new Quaternion(cross.x, cross.y, cross.z, w);
+            rotation.Normalize();
+
+            return rotation;
+        }  
+
+    }
     public static Vector3 Direction(this Vector3 from, Vector3 to)
     {
         return (to - from).normalized;
@@ -1842,7 +2029,7 @@ public static class MathExtensions
         return value.position + predictedPositionChange;
     }
 
-    #region External Sources
+#region External Sources
 
     public static float GetAngleBetweenPositions(Vector3 firstPosition, Vector3 secondPosition)
     {
@@ -1895,6 +2082,6 @@ public static class MathExtensions
         return Mathf.Abs(a - b) < epsilon;
     }
 
-    #endregion
+#endregion
 
 }
