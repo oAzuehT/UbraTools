@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEditor;
-using DestroyIt;
 
 namespace Ubra.Engine.Generic
 {
@@ -109,6 +108,104 @@ namespace Ubra.Engine.Generic
             }
         }
 
+        public void AddBoxCollider()
+        {
+            if (RemovalSafetyCheck)
+            {
+
+                Transform[] children = gameObject.GetChildren();
+                if (children.Length <= 0)
+                {
+                    return;
+                }
+                foreach (var child in children)
+                {
+                    if (child.GetComponent<Collider>() == null)
+                    {
+                        BoxCollider col = child.gameObject.AddComponent<BoxCollider>();
+                        _colliders.Add(col);
+                    }
+                }
+
+                ///
+
+                UpdateCollidersList();
+            }
+        }
+        public void AddSphereCollider()
+        {
+            if (RemovalSafetyCheck)
+            {
+
+                Transform[] children = gameObject.GetChildren();
+                if (children.Length <= 0)
+                {
+                    return;
+                }
+                foreach (var child in children)
+                {
+                    if (child.GetComponent<Collider>() == null)
+                    {
+                        SphereCollider col = child.gameObject.AddComponent<SphereCollider>();
+                        _colliders.Add(col);
+                    }
+                }
+
+                ///
+
+                UpdateCollidersList();
+            }
+        }
+        public void AddCapsuleCollider()
+        {
+            if (RemovalSafetyCheck)
+            {
+
+                Transform[] children = gameObject.GetChildren();
+                if (children.Length <= 0)
+                {
+                    return;
+                }
+                foreach (var child in children)
+                {
+                    if (child.GetComponent<Collider>() == null)
+                    {
+                        CapsuleCollider col = child.gameObject.AddComponent<CapsuleCollider>();
+                        _colliders.Add(col);
+                    }
+                }
+
+                ///
+
+                UpdateCollidersList();
+            }
+        }
+        public void AddMeshCollider()
+        {
+            if (RemovalSafetyCheck)
+            {
+
+                Transform[] children = gameObject.GetChildren();
+                if (children.Length <= 0)
+                {
+                    return;
+                }
+                foreach (var child in children)
+                {
+                    if (child.GetComponent<Collider>() == null)
+                    {
+                        MeshCollider col = child.gameObject.AddComponent<MeshCollider>();
+                        _colliders.Add(col);
+                    }
+                }
+
+                ///
+
+                UpdateCollidersList();
+            }
+        }
+
+        ///
 
         [HideInInspector] public bool RemovalSafetyCheck = false;
         public void RemoveAllColliders()
@@ -173,6 +270,25 @@ namespace Ubra.Engine.Generic
                 if (GUILayout.Button("Remove Child Colliders"))
                 {
                     CH.RemoveAllColliders();
+                }
+                GUILayout.Space(20);
+                EditorGUILayout.LabelField(" Add Colliders to Empty Objects ");
+                GUILayout.Space(5);
+                if (GUILayout.Button(" Add Box Colliders "))
+                {
+                    CH.AddBoxCollider();
+                }
+                if (GUILayout.Button(" Add Sphere Colliders "))
+                {
+                    CH.AddSphereCollider();
+                }
+                if (GUILayout.Button(" Add Capsule Colliders "))
+                {
+                    CH.AddCapsuleCollider();
+                }
+                if (GUILayout.Button(" Add Mesh Colliders "))
+                {
+                    CH.AddMeshCollider();
                 }
             }
 

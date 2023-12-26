@@ -1,6 +1,4 @@
-﻿using DestroyIt;
-using Ubra.Engine.Core;
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
 namespace Ubra.Engine.Generic
