@@ -8,7 +8,6 @@ using System.Linq;
 #if UNITY_EDITOR
 using UnityEditor.Animations;
 #endif
-using Ubra.Engine.Core;
 
 public class Ref<T> where T : struct
 {
@@ -926,6 +925,7 @@ public static class TransformExtensions
         return rotation;
     }
 
+#if UBRA
     //Smooth the Look operation using Coroutines.
     // If you don't have a Singleton instance you can instead directly call the 'LookAtCoroutine' Coroutine.
     public static void LookTo(this Transform value, Transform target, float speed, float maxTimeSpan, ref bool isFinished)
@@ -946,6 +946,7 @@ public static class TransformExtensions
 
         result();
     }
+#endif
 
     //You can retrieve the operation status by using a bool wrapper
     public static IEnumerator LookAtCoroutine(Transform value, Transform target, float timeToLookAt, float maxTimeSpan, bool status)
@@ -1668,11 +1669,87 @@ public static class MathExtensions
         }
         return false;
     }
+
+    //public static Collider[] GetOverlappingColliders(this Collider col, float radius = 1f, int layerMask = -1)
+    //{
+
+    //    Vector3 offset = Vector3.zero;
+    //    Collider[] result = null;
+
+    //    if (col is BoxCollider)
+    //    {
+    //        BoxCollider box = col as BoxCollider;
+    //        Vector3 boxSize = box.size;
+    //        Vector3 boxCenter = box.transform.position + box.center;
+    //        //Vector3 boxSize = box.transform.TransformVector(box.bounds.size);
+    //        //Vector3 boxCenter = box.transform.TransformPoint(box.bounds.center);
+
+    //        if (layerMask == -1)
+    //        {
+    //            result = Physics.OverlapBox(boxCenter, boxSize / 2, box.transform.rotation);
+    //        }
+    //        else
+    //        {
+    //            result = Physics.OverlapBox(boxCenter, boxSize / 2, box.transform.rotation, layerMask);
+    //        }
+    //    }
+    //    else if (col is SphereCollider)
+    //    {
+    //        SphereCollider sphere = col as SphereCollider;
+    //        offset = sphere.center;
+    //        if (layerMask == -1)
+    //        {
+    //            result = Physics.OverlapSphere(sphere.transform.position + offset, sphere.radius);
+    //        }
+    //        else
+    //        {
+    //            result = Physics.OverlapSphere(sphere.transform.position + offset, sphere.radius, layerMask);
+    //        }
+    //    }
+    //    else if (col is CapsuleCollider)
+    //    {
+    //        CapsuleCollider capsule = col as CapsuleCollider;
+    //        Vector3 point0 = capsule.transform.position + (capsule.height / 2 - capsule.radius) * capsule.transform.up;
+    //        Vector3 point1 = capsule.transform.position - (capsule.height / 2 - capsule.radius) * capsule.transform.up;
+
+    //        if (layerMask == -1)
+    //        {
+    //            result = Physics.OverlapCapsule(point0, point1, capsule.radius);
+    //        }
+    //        else
+    //        {
+    //            result = Physics.OverlapCapsule(point0, point1, capsule.radius, layerMask);
+    //        }
+    //    }
+    //    else
+    //    {
+    //        /// (col is MeshCollider)      
+    //        MeshCollider meshCollider = col as MeshCollider;
+    //        Vector3 boxSize = meshCollider.transform.TransformVector(meshCollider.sharedMesh.bounds.size);
+    //        Vector3 boxCenter = meshCollider.transform.TransformPoint(meshCollider.sharedMesh.bounds.center);
+
+    //        if (layerMask == -1)
+    //        {
+    //            Collider[] overlappingColliders =
+    //                Physics.OverlapBox(boxCenter, boxSize / 2, meshCollider.transform.rotation);
+    //        }
+    //        else
+    //        {
+    //            Collider[] overlappingColliders =
+    //                Physics.OverlapBox(boxCenter, boxSize / 2, meshCollider.transform.rotation, layerMask);
+    //        }
+
+    //    }
+
+    //    Debug.Log("RETURNING :: " + result.Length.ToString());
+    //    return result;
+
+    //}
     public static bool IsOverlapping(this Collider col, Collider target)
     {
         return col.bounds.Intersects(target.bounds);
     }
-    /// Default Break Attempt
+    /// Default Break Attempt - Break Mass Overlap
     public static void BreakOverlap(this Collider col, Collider target)
     {
         
@@ -1787,7 +1864,6 @@ public static class MathExtensions
             iterations++;
         }
     }
-    /// 
     public static bool IsWithinBoundaries(this Vector3 value, Collider collider)
     {
         if (collider == null)
@@ -1828,7 +1904,15 @@ public static class MathExtensions
 
         return intersectCount % 2 == 1;
     }
-
+    /// Encase Collider within a Box Collider
+    public static BoxCollider EncaseBox(this Collider col)
+    {
+        GameObject go = new GameObject("Temp");
+        BoxCollider box = go.AddComponent<BoxCollider>();
+        box.center = col.bounds.center - col.transform.position;
+        box.size = col.bounds.size;
+        return box;
+    }
     //
 
     public static Vector3 ZOffset(this Vector3 source, Vector3 target, float offset)
@@ -1931,7 +2015,7 @@ public static class MathExtensions
 
     // Scale Methods
 
-    public static float ToRadius(this Vector3 value, float baseRadius)
+    public static float ToRadius(this Vector3 value, float baseRadius = 1f)
     {
         Vector3 cubeSize = value;//cubeTransform.localScale;
         float cubeVolume = cubeSize.x * cubeSize.y * cubeSize.z;
